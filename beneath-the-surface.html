@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beneath the Surface</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap');
+
+  :root {
+    --abyss: #020810;
+    --deep: #041428;
+    --midnight: #061e38;
+    --ocean: #0a3a6e;
+    --teal: #0d7377;
+    --biolum: #00f5d4;
+    --gold: #ffd166;
+    --coral: #ef476f;
+    --surface: #a8d8ea;
+    --light: #e8f4f8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--abyss);
+    color: var(--light);
+    font-family: 'Crimson Pro', Georgia, serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+  }
+
+  /* ============ SCREENS ============ */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: all; }
+
+  /* ============ CANVAS ============ */
+  #gameCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ============ MENU ============ */
+  #menuScreen {
+    z-index: 10;
+    background: radial-gradient(ellipse at 50% 20%, #0a3a6e22 0%, transparent 70%),
+                radial-gradient(ellipse at 30% 80%, #0d737722 0%, transparent 60%),
+                var(--abyss);
+  }
+
+  .menu-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    font-size: clamp(2.5rem, 7vw, 6rem);
+    letter-spacing: 0.08em;
+    text-align: center;
+    line-height: 1;
+    color: transparent;
+    background: linear-gradient(180deg, var(--surface) 0%, var(--biolum) 50%, var(--teal) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 40px #00f5d466);
+    animation: titlePulse 3s ease-in-out infinite;
+  }
+
+  @keyframes titlePulse {
+    0%, 100% { filter: drop-shadow(0 0 30px #00f5d455); }
+    50% { filter: drop-shadow(0 0 60px #00f5d488) drop-shadow(0 0 100px #0d737744); }
+  }
+
+  .menu-sub {
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    color: var(--surface);
+    opacity: 0.7;
+    letter-spacing: 0.2em;
+    margin: 1rem 0 3rem;
+  }
+
+  .menu-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 1rem 3rem;
+    background: transparent;
+    border: 1px solid var(--biolum);
+    color: var(--biolum);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.3s, box-shadow 0.3s;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+  .menu-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--biolum);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+    z-index: -1;
+  }
+  .menu-btn:hover { color: var(--abyss); box-shadow: 0 0 30px var(--biolum); }
+  .menu-btn:hover::before { transform: scaleX(1); }
+
+  .menu-controls {
+    margin-top: 3rem;
+    text-align: center;
+    opacity: 0.5;
+    font-size: 0.9rem;
+    font-style: italic;
+    line-height: 2;
+  }
+
+  .bubbles-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .bubble {
+    position: absolute;
+    bottom: -20px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #00f5d422, #00f5d408);
+    border: 1px solid #00f5d433;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    to { transform: translateY(-110vh) translateX(var(--drift)); opacity: 0; }
+  }
+
+  /* ============ HUD ============ */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 5;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  #hud.visible { opacity: 1; }
+
+  .hud-panel {
+    background: linear-gradient(135deg, #041428cc, #020810cc);
+    border: 1px solid #00f5d422;
+    padding: 0.6rem 1.2rem;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  }
+  .hud-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--biolum);
+    opacity: 0.7;
+  }
+  .hud-value {
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
+  .depth-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .depth-bar {
+    width: 180px;
+    height: 6px;
+    background: #041428;
+    border: 1px solid #00f5d433;
+    overflow: hidden;
+  }
+  .depth-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--biolum), var(--coral));
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px var(--biolum);
+  }
+
+  /* ============ OXYGEN BAR ============ */
+  .oxygen-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+  .oxygen-bar {
+    width: 150px;
+    height: 8px;
+    background: #041428;
+    border: 1px solid #00f5d433;
+    overflow: hidden;
+  }
+  .oxygen-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #06d6a0, #118ab2);
+    transition: width 0.1s linear;
+    box-shadow: 0 0 6px #06d6a0;
+  }
+
+  /* ============ GAME OVER / WIN ============ */
+  #overlayScreen {
+    z-index: 20;
+    background: radial-gradient(ellipse at center, #020810ee, #020810ff);
+  }
+
+  .overlay-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 6vw, 4.5rem);
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+  .overlay-title.dead { color: var(--coral); text-shadow: 0 0 40px var(--coral); }
+  .overlay-title.win { color: var(--gold); text-shadow: 0 0 40px var(--gold); }
+
+  .overlay-score {
+    font-family: 'Crimson Pro', serif;
+    font-size: 1.3rem;
+    font-style: italic;
+    color: var(--surface);
+    opacity: 0.8;
+    margin-bottom: 2.5rem;
+  }
+
+  .btn-row { display: flex; gap: 1rem; }
+
+  /* ============ DEPTH ZONES ============ */
+  .zone-label {
+    position: absolute;
+    right: 1.5rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND CANVAS -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- BUBBLES BG -->
+<div class="bubbles-bg" id="bubblesBg"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-panel">
+    <div class="hud-label">SCORE</div>
+    <div class="hud-value" id="scoreVal">0</div>
+  </div>
+  <div class="depth-bar-wrap">
+    <div class="hud-label" style="color:var(--surface)">DEPTH</div>
+    <div class="depth-bar"><div class="depth-fill" id="depthFill" style="width:0%"></div></div>
+    <div class="hud-value" id="depthVal" style="font-size:0.9rem;color:var(--surface)">0m</div>
+  </div>
+  <div class="oxygen-wrap">
+    <div class="hud-label">OXYGEN</div>
+    <div class="oxygen-bar"><div class="oxygen-fill" id="oxyFill" style="width:100%"></div></div>
+    <div class="hud-value" id="livesVal" style="font-size:0.9rem">❤️❤️❤️</div>
+  </div>
+</div>
+
+<!-- MENU SCREEN -->
+<div id="menuScreen" class="screen active">
+  <div class="menu-title">BENEATH<br>THE SURFACE</div>
+  <div class="menu-sub">— dive into the unknown —</div>
+  <button class="menu-btn" id="startBtn">DESCEND</button>
+  <div class="menu-controls">
+    W / ↑ &nbsp; Swim Up &nbsp; · &nbsp; S / ↓ &nbsp; Dive Down<br>
+    A / ← &nbsp; Left &nbsp; · &nbsp; D / → &nbsp; Right<br>
+    Collect glowing orbs · Avoid sea creatures<br>
+    Reach the <span style="color:var(--gold)">Ancient Relic</span> at 1000m
+  </div>
+</div>
+
+<!-- OVERLAY (game over / win) -->
+<div id="overlayScreen" class="screen">
+  <div class="overlay-title" id="overlayTitle">GAME OVER</div>
+  <div class="overlay-score" id="overlayScore"></div>
+  <div class="btn-row">
+    <button class="menu-btn" id="retryBtn">TRY AGAIN</button>
+    <button class="menu-btn" id="menuBtn" style="border-color:var(--surface);color:var(--surface)">MENU</button>
+  </div>
+</div>
+
+<script>
+// ============================
+//  BENEATH THE SURFACE — GAME
+// ============================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---- STATE ----
+let gameState = 'menu'; // menu | playing | dead | win
+let keys = {};
+let score = 0;
+let depth = 0; // in meters
+let oxygen = 100; // 0-100
+let lives = 3;
+let cameraY = 0; // world Y offset
+let particles = [];
+let collectibles = [];
+let enemies = [];
+let bubbles = [];
+let worldBubbles = [];
+let relicSpawned = false;
+let relic = null;
+let animId;
+
+// ---- PLAYER ----
+const player = {
+  x: 0, y: 0,
+  vx: 0, vy: 0,
+  w: 28, h: 40,
+  invincible: 0,
+  trail: []
+};
+
+// ---- DEPTH ZONES ----
+const ZONES = [
+  { min: 0,    max: 150,  name: 'SUNLIGHT ZONE',   color: '#0a3a6e', light: '#a8d8ea' },
+  { min: 150,  max: 350,  name: 'TWILIGHT ZONE',   color: '#041428', light: '#5a7fa8' },
+  { min: 350,  max: 600,  name: 'MIDNIGHT ZONE',   color: '#020c18', light: '#2a4a68' },
+  { min: 600,  max: 800,  name: 'ABYSSAL ZONE',    color: '#010810', light: '#153040' },
+  { min: 800,  max: 1000, name: 'HADAL ZONE',      color: '#000508', light: '#0d2030' },
+];
+const MAX_DEPTH = 1000;
+
+function getZone(d) {
+  return ZONES.find(z => d >= z.min && d < z.max) || ZONES[ZONES.length - 1];
+}
+
+// ---- INPUT ----
+document.addEventListener('keydown', e => { keys[e.key] = true; keys[e.code] = true; });
+document.addEventListener('keyup',   e => { keys[e.key] = false; keys[e.code] = false; });
+
+// Mobile controls (touch swipe)
+let touchStart = null;
+canvas.addEventListener('touchstart', e => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; });
+canvas.addEventListener('touchmove', e => {
+  if (!touchStart) return;
+  const dx = e.touches[0].clientX - touchStart.x;
+  const dy = e.touches[0].clientY - touchStart.y;
+  keys['_mx'] = dx; keys['_my'] = dy;
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => { touchStart = null; keys['_mx'] = 0; keys['_my'] = 0; });
+
+function isMoving(dir) {
+  if (dir === 'up')    return keys['w'] || keys['W'] || keys['ArrowUp']    || keys['_my'] < -10;
+  if (dir === 'down')  return keys['s'] || keys['S'] || keys['ArrowDown']  || keys['_my'] > 10;
+  if (dir === 'left')  return keys['a'] || keys['A'] || keys['ArrowLeft']  || keys['_mx'] < -10;
+  if (dir === 'right') return keys['d'] || keys['D'] || keys['ArrowRight'] || keys['_mx'] > 10;
+}
+
+// ---- INIT GAME ----
+function initGame() {
+  player.x = W / 2;
+  player.y = H * 0.35;
+  player.vx = 0;
+  player.vy = 0;
+  player.trail = [];
+  player.invincible = 0;
+  score = 0;
+  depth = 0;
+  oxygen = 100;
+  lives = 3;
+  cameraY = 0;
+  particles = [];
+  collectibles = [];
+  enemies = [];
+  worldBubbles = [];
+  relicSpawned = false;
+  relic = null;
+
+  // Spawn initial collectibles & enemies
+  for (let i = 0; i < 12; i++) spawnCollectible(true);
+  for (let i = 0; i < 5; i++) spawnEnemy(true);
+
+  document.getElementById('hud').classList.add('visible');
+  updateHUD();
+}
+
+// ---- COLLECTIBLE ----
+function spawnCollectible(init = false) {
+  const types = [
+    { type: 'orb',    color: '#00f5d4', points: 10, oxygen: 5,  r: 8  },
+    { type: 'pearl',  color: '#ffd166', points: 30, oxygen: 0,  r: 6  },
+    { type: 'coral',  color: '#ef476f', points: 20, oxygen: 10, r: 10 },
+    { type: 'tank',   color: '#06d6a0', points: 5,  oxygen: 25, r: 9  },
+  ];
+  const t = types[Math.floor(Math.random() * types.length)];
+  const yRange = init ? H * 3 : H;
+  const baseY = init ? cameraY + Math.random() * H * 3 : cameraY + H + Math.random() * yRange;
+  collectibles.push({
+    ...t,
+    x: 60 + Math.random() * (W - 120),
+    y: baseY,
+    pulse: Math.random() * Math.PI * 2,
+    alive: true
+  });
+}
+
+// ---- ENEMY ----
+const ENEMY_TYPES = [
+  { name: 'jellyfish', color: '#ef476f', r: 18, speed: 0.4, pattern: 'drift',    dmg: 1 },
+  { name: 'anglerfish',color: '#ffd166', r: 22, speed: 0.6, pattern: 'patrol',   dmg: 1 },
+  { name: 'eel',       color: '#8338ec', r: 12, speed: 1.2, pattern: 'chase',    dmg: 2 },
+  { name: 'crab',      color: '#ff6b35', r: 16, speed: 0.5, pattern: 'sideways', dmg: 1 },
+];
+
+function spawnEnemy(init = false) {
+  const et = ENEMY_TYPES[Math.floor(Math.random() * ENEMY_TYPES.length)];
+  const yRange = init ? H * 3 : H;
+  const baseY = init ? cameraY + H * 0.5 + Math.random() * H * 2.5 : cameraY + H + Math.random() * yRange;
+  enemies.push({
+    ...et,
+    x: 50 + Math.random() * (W - 100),
+    y: baseY,
+    vx: (Math.random() - 0.5) * et.speed * 2,
+    vy: (Math.random() - 0.5) * et.speed,
+    phase: Math.random() * Math.PI * 2,
+    alive: true
+  });
+}
+
+// ---- SPAWN WORLD BUBBLE ----
+function spawnWorldBubble() {
+  worldBubbles.push({
+    x: Math.random() * W,
+    y: cameraY + H + 20,
+    r: 2 + Math.random() * 5,
+    speed: 0.5 + Math.random() * 1.5,
+    alpha: 0.3 + Math.random() * 0.4,
+    drift: (Math.random() - 0.5) * 0.5
+  });
+}
+
+// ---- PARTICLE ----
+function spawnParticles(x, y, color, count = 8) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.3;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color,
+      life: 1,
+      r: 2 + Math.random() * 3
+    });
+  }
+}
+
+// ---- UPDATE HUD ----
+function updateHUD() {
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('depthVal').textContent = Math.round(depth) + 'm';
+  const pct = (depth / MAX_DEPTH) * 100;
+  document.getElementById('depthFill').style.width = pct + '%';
+  document.getElementById('oxyFill').style.width = Math.max(0, oxygen) + '%';
+  document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(Math.max(0, 3 - lives));
+  const oxyEl = document.getElementById('oxyFill');
+  if (oxygen < 25) {
+    oxyEl.style.background = 'linear-gradient(90deg, #ef476f, #ffd166)';
+    oxyEl.style.boxShadow = '0 0 10px #ef476f';
+  } else {
+    oxyEl.style.background = 'linear-gradient(90deg, #06d6a0, #118ab2)';
+    oxyEl.style.boxShadow = '0 0 6px #06d6a0';
+  }
+}
+
+// ---- DRAW BACKGROUND ----
+function drawBackground() {
+  const zone = getZone(depth);
+  const nextZone = ZONES[ZONES.indexOf(zone) + 1];
+
+  // Sky/water gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, zone.color);
+  grad.addColorStop(1, nextZone ? nextZone.color : '#000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // God rays (only in shallow zones)
+  if (depth < 300) {
+    const alpha = Math.max(0, 0.06 * (1 - depth / 300));
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    for (let i = 0; i < 5; i++) {
+      const rx = W * (0.15 + i * 0.18);
+      ctx.fillStyle = zone.light;
+      ctx.beginPath();
+      ctx.moveTo(rx - 20, 0);
+      ctx.lineTo(rx + 20, 0);
+      ctx.lineTo(rx + 60, H);
+      ctx.lineTo(rx - 60, H);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Bioluminescent floor glow (deep zones)
+  if (depth > 400) {
+    const da = Math.min(0.15, (depth - 400) / 2000);
+    const fGrad = ctx.createLinearGradient(0, H * 0.7, 0, H);
+    fGrad.addColorStop(0, 'transparent');
+    fGrad.addColorStop(1, `rgba(0,245,212,${da})`);
+    ctx.fillStyle = fGrad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Terrain edges (side walls giving ocean depth feel)
+  const wallW = 50 + Math.sin(cameraY * 0.002) * 20;
+  ctx.fillStyle = '#010508';
+  ctx.fillRect(0, 0, wallW, H);
+  ctx.fillRect(W - wallW, 0, wallW, H);
+}
+
+// ---- DRAW PLAYER (submarine/diver) ----
+function drawPlayer() {
+  const px = player.x, py = player.y - cameraY;
+  const t = Date.now() / 1000;
+
+  // Trail
+  player.trail.push({ x: px, y: py });
+  if (player.trail.length > 18) player.trail.shift();
+  for (let i = 0; i < player.trail.length; i++) {
+    const a = (i / player.trail.length) * 0.3;
+    const r = (i / player.trail.length) * 4;
+    ctx.beginPath();
+    ctx.arc(player.trail[i].x, player.trail[i].y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,245,212,${a})`;
+    ctx.fill();
+  }
+
+  if (player.invincible > 0 && Math.floor(player.invincible / 5) % 2 === 0) return;
+
+  ctx.save();
+  ctx.translate(px, py);
+
+  // Body
+  ctx.fillStyle = '#1a3a5c';
+  ctx.strokeStyle = '#00f5d4';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 16, 22, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  // Visor
+  ctx.fillStyle = '#00f5d488';
+  ctx.beginPath();
+  ctx.ellipse(0, -4, 9, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor glint
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(-3, -7, 3, 2, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bubbles from diver
+  if (Math.random() < 0.1) {
+    worldBubbles.push({ x: player.x + (Math.random() - 0.5) * 10, y: player.y - 15, r: 1 + Math.random() * 2, speed: 1 + Math.random(), alpha: 0.5, drift: (Math.random() - 0.5) * 0.3 });
+  }
+
+  // Flippers (animate)
+  const flipAnim = Math.sin(t * 8) * 6;
+  ctx.fillStyle = '#0d7377';
+  ctx.strokeStyle = '#00f5d455';
+  ctx.lineWidth = 1;
+  // left flipper
+  ctx.beginPath();
+  ctx.ellipse(-18, 8 + flipAnim, 8, 4, -0.4, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // right flipper
+  ctx.beginPath();
+  ctx.ellipse(18, 8 - flipAnim, 8, 4, 0.4, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  ctx.restore();
+}
+
+// ---- DRAW COLLECTIBLES ----
+function drawCollectibles() {
+  const t = Date.now() / 1000;
+  for (const c of collectibles) {
+    if (!c.alive) continue;
+    const sy = c.y - cameraY;
+    if (sy < -50 || sy > H + 50) continue;
+    c.pulse += 0.04;
+    const pulse = Math.sin(c.pulse) * 0.15 + 1;
+
+    ctx.save();
+    ctx.translate(c.x, sy);
+    ctx.scale(pulse, pulse);
+
+    // Glow
+    const gGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, c.r * 3);
+    gGrad.addColorStop(0, c.color + '44');
+    gGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = gGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.r * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = c.color;
+    ctx.shadowColor = c.color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Label for tank
+    if (c.type === 'tank') {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${c.r}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('O₂', 0, 0);
+    }
+
+    ctx.restore();
+  }
+}
+
+// ---- DRAW ENEMIES ----
+function drawEnemies() {
+  const t = Date.now() / 1000;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const sy = e.y - cameraY;
+    if (sy < -80 || sy > H + 80) continue;
+
+    ctx.save();
+    ctx.translate(e.x, sy);
+
+    if (e.name === 'jellyfish') {
+      // Bell
+      ctx.fillStyle = e.color + 'cc';
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, e.r, Math.PI, 0);
+      ctx.fill(); ctx.stroke();
+      // Tentacles
+      for (let i = 0; i < 6; i++) {
+        const tx = -e.r + (e.r * 2 / 5) * i + Math.sin(t * 3 + i) * 4;
+        ctx.strokeStyle = e.color + '88';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(tx, 0);
+        ctx.quadraticCurveTo(tx + Math.sin(t * 2 + i) * 8, 12, tx + Math.sin(t + i) * 4, 22);
+        ctx.stroke();
+      }
+    } else if (e.name === 'anglerfish') {
+      // Body
+      ctx.fillStyle = '#2a1a00';
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, e.r, e.r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      // Eye
+      ctx.fillStyle = 'white';
+      ctx.beginPath(); ctx.arc(-6, -4, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(-5, -4, 3, 0, Math.PI * 2); ctx.fill();
+      // Lure
+      const lx = 5 + Math.sin(t * 4) * 3, ly = -e.r - 8 + Math.cos(t * 4) * 3;
+      ctx.strokeStyle = e.color + '66';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -e.r * 0.7); ctx.lineTo(lx, ly); ctx.stroke();
+      ctx.fillStyle = e.color;
+      ctx.shadowColor = e.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fill();
+    } else if (e.name === 'eel') {
+      // Sinuous body
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = e.r;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = e.color; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let j = 1; j <= 5; j++) {
+        ctx.lineTo(j * 8 * (e.vx > 0 ? -1 : 1), Math.sin(t * 5 + j) * 8);
+      }
+      ctx.stroke();
+      // Head
+      ctx.fillStyle = e.color;
+      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, Math.PI * 2); ctx.fill();
+    } else if (e.name === 'crab') {
+      ctx.fillStyle = e.color;
+      ctx.strokeStyle = '#ff944d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, e.r, e.r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      // Claws
+      const clawAnim = Math.sin(t * 3) * 3;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = e.color;
+      ctx.beginPath(); ctx.moveTo(-e.r, 0); ctx.lineTo(-e.r - 10, -clawAnim); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-e.r, 0); ctx.lineTo(-e.r - 10, clawAnim); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(e.r, 0); ctx.lineTo(e.r + 10, -clawAnim); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(e.r, 0); ctx.lineTo(e.r + 10, clawAnim); ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+}
+
+// ---- DRAW RELIC ----
+function drawRelic() {
+  if (!relic) return;
+  const sy = relic.y - cameraY;
+  if (sy < -100 || sy > H + 100) return;
+  const t = Date.now() / 1000;
+
+  ctx.save();
+  ctx.translate(relic.x, sy);
+
+  // Glow halo
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 60);
+  g.addColorStop(0, '#ffd16644');
+  g.addColorStop(0.5, '#ffd16622');
+  g.addColorStop(1, 'transparent');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI * 2); ctx.fill();
+
+  // Rotate
+  ctx.rotate(t * 0.5);
+
+  // Ancient symbol (octagon + inner star)
+  ctx.strokeStyle = '#ffd166';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 20;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI * 2 / 8) * i - Math.PI / 8;
+    const r = 28;
+    i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath(); ctx.stroke();
+
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI * 2 / 6) * i;
+    const r = i % 2 === 0 ? 20 : 10;
+    i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath(); ctx.fillStyle = '#ffd16655'; ctx.fill(); ctx.stroke();
+
+  ctx.restore();
+}
+
+// ---- DRAW WORLD BUBBLES ----
+function drawWorldBubbles() {
+  worldBubbles = worldBubbles.filter(b => b.y > cameraY - 20);
+  for (const b of worldBubbles) {
+    const sy = b.y - cameraY;
+    if (sy < 0 || sy > H) continue;
+    b.y -= b.speed;
+    b.x += b.drift;
+    ctx.beginPath();
+    ctx.arc(b.x, sy, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(168, 216, 234, ${b.alpha})`;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+}
+
+// ---- DRAW PARTICLES ----
+function drawParticles() {
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    const sy = p.y - cameraY;
+    ctx.beginPath();
+    ctx.arc(p.x, sy, p.r * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = p.color + Math.floor(p.life * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+    p.x += p.vx; p.y += p.vy;
+    p.vy -= 0.05;
+    p.life -= 0.03;
+  }
+}
+
+// ---- DRAW ZONE LABEL ----
+let zoneLabel = '', zoneLabelAlpha = 0;
+function drawZoneLabel() {
+  const zone = getZone(depth);
+  if (zone.name !== zoneLabel) {
+    zoneLabel = zone.name;
+    zoneLabelAlpha = 2;
+  }
+  if (zoneLabelAlpha > 0) {
+    zoneLabelAlpha -= 0.01;
+    const a = Math.min(1, zoneLabelAlpha);
+    ctx.save();
+    ctx.globalAlpha = a * 0.7;
+    ctx.font = "600 0.7rem 'Cinzel', serif";
+    ctx.font = 'bold 11px Cinzel, serif';
+    ctx.letterSpacing = '0.2em';
+    ctx.fillStyle = zone.light;
+    ctx.textAlign = 'right';
+    ctx.fillText('— ' + zoneLabel + ' —', W - 20, H * 0.5);
+    ctx.restore();
+  }
+}
+
+// ---- UPDATE GAME ----
+function update() {
+  if (gameState !== 'playing') return;
+
+  const SPEED = 3.5, FRICTION = 0.88, WATER_DRAG = 0.92;
+
+  // Movement
+  if (isMoving('left'))  player.vx -= SPEED * 0.15;
+  if (isMoving('right')) player.vx += SPEED * 0.15;
+  if (isMoving('up'))    player.vy -= SPEED * 0.15;
+  if (isMoving('down'))  player.vy += SPEED * 0.15;
+
+  player.vx *= WATER_DRAG;
+  player.vy *= WATER_DRAG;
+  player.vy += 0.04; // gentle buoyancy fight
+
+  // Clamp
+  player.vx = Math.max(-SPEED, Math.min(SPEED, player.vx));
+  player.vy = Math.max(-SPEED, Math.min(SPEED, player.vy));
+
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Wall bounds
+  const margin = 55;
+  player.x = Math.max(margin, Math.min(W - margin, player.x));
+
+  // Camera follows player
+  const targetCam = player.y - H * 0.35;
+  if (targetCam > cameraY) cameraY += (targetCam - cameraY) * 0.08;
+
+  // Depth
+  depth = cameraY / H * (MAX_DEPTH / 3);
+  depth = Math.max(0, depth);
+
+  // Can't go above surface
+  if (player.y < cameraY + 60) { player.y = cameraY + 60; player.vy = 0; }
+
+  // Oxygen drain (faster in deeper zones)
+  const oxyDrain = 0.015 + depth / MAX_DEPTH * 0.04;
+  oxygen = Math.max(0, oxygen - oxyDrain);
+
+  if (oxygen <= 0 || lives <= 0) { endGame(false); return; }
+
+  // Invincibility countdown
+  if (player.invincible > 0) player.invincible--;
+
+  // Spawn world bubbles
+  if (Math.random() < 0.08) spawnWorldBubble();
+
+  // Spawn collectibles dynamically
+  if (collectibles.filter(c => c.alive && c.y > cameraY && c.y < cameraY + H * 2).length < 8) {
+    spawnCollectible();
+  }
+  // Spawn enemies dynamically
+  if (enemies.filter(e => e.alive && e.y > cameraY - H && e.y < cameraY + H * 2).length < 6) {
+    spawnEnemy();
+  }
+
+  // Spawn relic near end
+  if (!relicSpawned && depth > 850) {
+    relicSpawned = true;
+    relic = { x: W / 2, y: cameraY + H * 2.5 + (MAX_DEPTH - depth) * 10, r: 30 };
+  }
+
+  // Update enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.phase += 0.02;
+
+    if (e.pattern === 'drift') {
+      e.x += Math.sin(e.phase) * 0.8;
+      e.y += Math.cos(e.phase * 0.5) * 0.3;
+    } else if (e.pattern === 'patrol') {
+      e.x += e.vx;
+      if (e.x < 60 || e.x > W - 60) e.vx *= -1;
+    } else if (e.pattern === 'chase') {
+      const dx = player.x - e.x, dy = player.y - e.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 250) {
+        e.vx += (dx / dist) * 0.05;
+        e.vy += (dy / dist) * 0.05;
+      }
+      e.vx *= 0.95; e.vy *= 0.95;
+      e.x += e.vx; e.y += e.vy;
+    } else if (e.pattern === 'sideways') {
+      e.x += e.vx;
+      if (e.x < 60 || e.x > W - 60) e.vx *= -1;
+      e.y += Math.sin(e.phase) * 0.4;
+    }
+
+    // Collision with player
+    if (player.invincible === 0) {
+      const dx = player.x - e.x, dy = player.y - e.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < e.r + 18) {
+        lives = Math.max(0, lives - e.dmg);
+        player.invincible = 120;
+        spawnParticles(player.x, player.y - cameraY, '#ef476f', 12);
+        oxygen = Math.max(0, oxygen - 15);
+        if (lives <= 0) { endGame(false); return; }
+      }
+    }
+  }
+
+  // Collect items
+  for (const c of collectibles) {
+    if (!c.alive) continue;
+    const dx = player.x - c.x, dy = player.y - c.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < c.r + 18) {
+      c.alive = false;
+      score += c.points * (1 + Math.floor(depth / 100));
+      oxygen = Math.min(100, oxygen + c.oxygen);
+      spawnParticles(c.x, c.y - cameraY, c.color, 10);
+    }
+  }
+
+  // Collect relic
+  if (relic) {
+    const dx = player.x - relic.x, dy = player.y - relic.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < relic.r + 18) {
+      endGame(true);
+      return;
+    }
+  }
+
+  updateHUD();
+}
+
+// ---- END GAME ----
+function endGame(won) {
+  gameState = won ? 'win' : 'dead';
+  document.getElementById('hud').classList.remove('visible');
+  const title = document.getElementById('overlayTitle');
+  const sc = document.getElementById('overlayScore');
+  title.textContent = won ? '⚓ RELIC RECOVERED' : 'DEPTH CLAIMED YOU';
+  title.className = 'overlay-title ' + (won ? 'win' : 'dead');
+  sc.textContent = `Depth: ${Math.round(depth)}m  ·  Score: ${score}  ·  Oxygen: ${Math.round(oxygen)}%`;
+  showScreen('overlayScreen');
+}
+
+// ---- DRAW LOOP ----
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  drawWorldBubbles();
+  drawCollectibles();
+  drawRelic();
+  drawEnemies();
+  drawPlayer();
+  drawParticles();
+  drawZoneLabel();
+}
+
+function gameLoop() {
+  update();
+  if (gameState === 'playing' || gameState === 'dead') draw();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+// ---- SCREEN MANAGEMENT ----
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  if (id) document.getElementById(id).classList.add('active');
+}
+
+// ---- MENU BUBBLES ----
+function createMenuBubbles() {
+  const bg = document.getElementById('bubblesBg');
+  bg.innerHTML = '';
+  for (let i = 0; i < 20; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 6 + Math.random() * 30;
+    b.style.width = size + 'px';
+    b.style.height = size + 'px';
+    b.style.left = Math.random() * 100 + '%';
+    b.style.animationDuration = (6 + Math.random() * 10) + 's';
+    b.style.animationDelay = (Math.random() * 8) + 's';
+    b.style.setProperty('--drift', (Math.random() - 0.5) * 80 + 'px');
+    bg.appendChild(b);
+  }
+}
+
+// ---- BUTTONS ----
+document.getElementById('startBtn').addEventListener('click', () => {
+  gameState = 'playing';
+  initGame();
+  showScreen(null);
+  createMenuBubbles();
+  document.getElementById('bubblesBg').style.opacity = '0.3';
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  gameState = 'playing';
+  initGame();
+  showScreen(null);
+});
+
+document.getElementById('menuBtn').addEventListener('click', () => {
+  gameState = 'menu';
+  document.getElementById('hud').classList.remove('visible');
+  document.getElementById('bubblesBg').style.opacity = '1';
+  showScreen('menuScreen');
+});
+
+// ---- INIT ----
+createMenuBubbles();
+showScreen('menuScreen');
+gameLoop();
+</script>
+</body>
+</html>
